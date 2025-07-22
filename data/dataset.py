@@ -8,6 +8,7 @@ def collate_fn(data):
 
     target_frames = torch.cat([example["target_frames"] for example in data], dim=0)
     input_frames = torch.cat([example["input_frames"] for example in data], dim=0)
+    clip_input_frame = torch.cat([example["clip_input_frame"] for example in data], dim=0)
     clip_ref_frame = torch.cat([example["clip_ref_frame"] for example in data], dim=0)
     ref_frame = torch.cat([example["ref_frame"] for example in data], dim=0)
     drop_image_embeds = [example["drop_image_embeds"] for example in data]
@@ -15,6 +16,7 @@ def collate_fn(data):
     return {
         "target_frames": target_frames,
         "input_frames": input_frames,
+        "clip_input_frame": clip_input_frame,
         "clip_ref_frame": clip_ref_frame,
         "ref_frame": ref_frame,
         "drop_image_embeds": drop_image_embeds,
