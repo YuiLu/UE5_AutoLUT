@@ -27,7 +27,7 @@ from diffusers.utils.import_utils import is_xformers_available
 
 from data.dataset import collate_fn
 from utils.util import zero_rank_print
-from models.ReferenceEncoder import ReferenceEncoder
+from models.ImageEncoder import ImageEncoder
 from models.ReferenceNet import ReferenceNet
 from models.ReferenceNet_attention import ReferenceNetAttention
 from data.Movie_3K_Step1 import Movie_3K_Step1
@@ -80,8 +80,8 @@ def main(
     launcher: str,
     
     output_dir: str,
-    pretrained_model_path: str,
-    clip_model_path:str,
+    pretrained_sd_path: str,
+    pretrained_clip_path:str,
     description: str,
     fusion_blocks: str,
     
@@ -128,7 +128,7 @@ def main(
     
     
     # Logging folder
-    folder_name = "debug" if is_debug else name + datetime.datetime.now().strftime("-%Y-%m-%dT%H-%M-%S")
+    folder_name = "debug" if is_debug else 'Step1/'+ datetime.datetime.now().strftime("-%Y-%m-%dT%H-%M-%S")
     output_dir = os.path.join(output_dir, folder_name)
     if is_debug and os.path.exists(output_dir):
         os.system(f"rm -rf {output_dir}")
@@ -148,19 +148,14 @@ def main(
     # Handle the output folder creation
     if is_main_process:
         os.makedirs(output_dir, exist_ok=True)
-        os.makedirs(f"{output_dir}/samples", exist_ok=True)
-        os.makedirs(f"{output_dir}/sanity_check", exist_ok=True)
         os.makedirs(f"{output_dir}/checkpoints", exist_ok=True)
-        OmegaConf.save(config, os.path.join(output_dir, 'config.yaml'))
         
-        print(description)
-
     # Load scheduler, tokenizer and models.
     noise_scheduler = DDIMScheduler(**OmegaConf.to_container(noise_scheduler_kwargs))
-    vae          = AutoencoderKL.from_pretrained(pretrained_model_path, subfolder="vae")
-    clip_image_encoder = ReferenceEncoder(model_path=clip_model_path)
-    referencenet = ReferenceNet.from_pretrained(pretrained_model_path, subfolder="unet")
-    unet = UNet2DConditionModel.from_pretrained(pretrained_model_path, subfolder="unet", in_channels=8, low_cpu_mem_usage=False, ignore_mismatched_sizes=True)
+    vae          = AutoencoderKL.from_pretrained(pretrained_sd_path, subfolder="vae")
+    clip_image_encoder = ImageEncoder(model_path=pretrained_clip_path)
+    referencenet = ReferenceNet.from_pretrained(pretrained_sd_path, subfolder="unet")
+    unet = UNet2DConditionModel.from_pretrained(pretrained_sd_path, subfolder="unet", in_channels=8, low_cpu_mem_usage=False, ignore_mismatched_sizes=True)
 
     reference_control_writer = ReferenceNetAttention(referencenet, do_classifier_free_guidance=False, mode='write', fusion_blocks=fusion_blocks)
     reference_control_reader = ReferenceNetAttention(unet, do_classifier_free_guidance=False, mode='read', fusion_blocks=fusion_blocks)
@@ -380,10 +375,7 @@ def main(
                     "referencenet_state_dict": referencenet.module.state_dict(),
                     
                 }
-                if step == len(train_dataloader) - 1:
-                    torch.save(state_dict, os.path.join(save_path, f"checkpoint-epoch-{epoch+1}.ckpt"))
-                else:
-                    torch.save(state_dict, os.path.join(save_path, f"checkpoint-global_step-{global_step}.ckpt"))
+                torch.save(state_dict, os.path.join(save_path, f"checkpoint-global_step-{global_step}.ckpt"))
                 logging.info(f"Saved state to {save_path} (global_step: {global_step})")
                                
             logs = {"step_loss": loss.detach().item(), "lr": lr_scheduler.get_last_lr()[0]}
@@ -401,6 +393,7 @@ if __name__ == "__main__":
     parser.add_argument("--config",   type=str, required=True)
     parser.add_argument("--launcher", type=str, choices=["pytorch", "slurm"], default="pytorch")
     parser.add_argument("--wandb",    action="store_true")
+
     args = parser.parse_args()
 
     name   = Path(args.config).stem
