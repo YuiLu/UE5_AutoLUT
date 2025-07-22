@@ -12,6 +12,7 @@ from pillow_lut import load_cube_file, resize_lut
 class Movie_3K_Step1(Dataset):
     def __init__(self,
                  video_folder,
+                 lut_folder,
                  sample_size=768,
                  clip_model_path="openai/clip-vit-base-patch32",
                  is_train=True
@@ -35,12 +36,12 @@ class Movie_3K_Step1(Dataset):
             transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5], inplace=True),
         ])
 
-        self.lut_root = 'PATH to Your LUT Files'
+        self.lut_root = lut_folder
         LUTs = natsort.natsorted(
             [os.path.join(self.lut_root, _) for _ in os.listdir(self.lut_root) if _.endswith('.cube')])
         self.lut_loads = []
 
-        for lut in LUTs:
+        for lut in LUTs[:90]:
             try:
                 hefe = load_cube_file(lut)
             except Exception as e:
@@ -54,7 +55,7 @@ class Movie_3K_Step1(Dataset):
     def __len__(self):
         return self.length
 
-    def get_batch(self, v_idx, inverse, l_idx1, l_idx2, l_idx3):
+    def get_batch(self, v_idx, inverse, l_idx1, l_idx2):
 
         folder_name = self.dataset[v_idx]
 
@@ -62,16 +63,23 @@ class Movie_3K_Step1(Dataset):
 
         video_reader = natsort.natsorted([os.path.join(video_dir, _) for _ in os.listdir(video_dir) if _.endswith('.jpg')])
         video_length = len(video_reader)
+
         lut1 = self.lut_loads[l_idx1]
         lut1 = np.array(lut1.table, copy=False, dtype=np.float32)
         lut2 = self.lut_loads[l_idx2]
         lut2 = np.array(lut2.table, copy=False, dtype=np.float32)
-        lut3 = self.lut_loads[l_idx3]
-        lut3 = np.array(lut3.table, copy=False, dtype=np.float32)
-        a = random.uniform(-1, 1)
-        b = random.uniform(-1, 1)
-        c = 1 - a - b
-        lut = a*lut1 +b*lut2 +c*lut3
+
+        mode = random.randint(0, 2)
+        if mode == 0:
+            lut = lut1
+        elif mode == 1:
+            a = random.random()
+            b = 1 - a
+            lut = a*lut1 + b*lut2
+        else:
+            a = random.uniform(-2, 2)
+            b = 1 - a
+            lut = a*lut1 + b*lut2
         lut = np.clip(lut, 0.0, 1.0)
         lut = ImageFilter.Color3DLUT(16, lut)
 
@@ -80,12 +88,15 @@ class Movie_3K_Step1(Dataset):
         input_frames = []
         for batch in batch_index:
             image = Image.open(video_reader[batch]).convert('RGB')
-
             target_frame = torch.from_numpy(np.array(image)).unsqueeze(0).permute(0, 3, 1, 2).contiguous()
             target_frame = target_frame / 255.
             input_frame = image.filter(lut)
-            input_frame = torch.from_numpy(np.array(input_frame)).unsqueeze(0).permute(0, 3, 1, 2).contiguous()
+            if inverse == 0:
+                clip_input_frame = self.clip_image_processor(images=input_frame, return_tensors="pt").pixel_values
+            else:
+                clip_input_frame = self.clip_image_processor(images=image, return_tensors="pt").pixel_values
 
+            input_frame = torch.from_numpy(np.array(input_frame)).unsqueeze(0).permute(0, 3, 1, 2).contiguous()
             input_frame = input_frame / 255.
             if inverse == 0:
                 input_frames.append(input_frame)
@@ -106,7 +117,7 @@ class Movie_3K_Step1(Dataset):
         ref_frame = torch.from_numpy(np.array(ref_frame)).permute(2, 0, 1).contiguous()
         ref_frame = ref_frame / 255.
 
-        return target_frames, input_frames, clip_ref_frame, ref_frame
+        return target_frames, input_frames, clip_ref_frame, clip_input_frame, ref_frame
 
     def __getitem__(self, idx):
         v_idx = idx % self.num_videos
@@ -114,8 +125,7 @@ class Movie_3K_Step1(Dataset):
 
         l_idx1 = random.randint(0, self.num_folders-1)
         l_idx2 = random.randint(0, self.num_folders-1)
-        l_idx3 = random.randint(0, self.num_folders-1)
-        target_frames, input_frames, clip_ref_frame, ref_frame = self.get_batch(v_idx, inverse, l_idx1, l_idx2, l_idx3)
+        target_frames, input_frames, clip_ref_frame, clip_input_frame, ref_frame = self.get_batch(v_idx, inverse, l_idx1, l_idx2)
         
 
         target_frames = self.pixel_transforms(target_frames)
@@ -128,6 +138,7 @@ class Movie_3K_Step1(Dataset):
         sample = dict(
             target_frames=target_frames,
             input_frames=input_frames,
+            clip_input_frame=clip_input_frame,
             clip_ref_frame=clip_ref_frame,
             ref_frame=ref_frame,
             drop_image_embeds=drop_image_embeds,
