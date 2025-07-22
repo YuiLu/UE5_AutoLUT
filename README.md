@@ -64,8 +64,8 @@ Training consists of two steps:
 
 Before training, make sure to update the config files with your environment:
 ```yaml
-pretrained_model_path : PATH To Your Pretrained Stable-Diffusion-Model
-clip_model_path: PATH To Your Pretrained CLIP-Model
+video_folder : PATH To Your Video Dataset
+lut_folder: PATH To Your LUT Dataset
 step1_checkpoint_path: PATH To Your Pretrained Step1 Model
 etc.
 ```
