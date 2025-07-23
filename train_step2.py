@@ -27,7 +27,7 @@ from diffusers.utils.import_utils import is_xformers_available
 
 from data.dataset import collate_fn_2
 from utils.util import zero_rank_print
-from models.ReferenceEncoder import ReferenceEncoder
+from models.ImageEncoder import ImageEncoder
 from models.ReferenceNet import ReferenceNet
 from models.ReferenceNet_attention_diff import ReferenceNetAttention
 from data.Movie_3K_Step2 import Movie_3K_Step2
@@ -88,8 +88,8 @@ def main(
     launcher: str,
     
     output_dir: str,
-    pretrained_model_path: str,
-    clip_model_path:str,
+    pretrained_sd_path: str,
+    pretrained_clip_path:str,
     step1_checkpoint_path: str,
 
     description: str,
@@ -135,7 +135,7 @@ def main(
     
 
     # Logging folder
-    folder_name = "debug" if is_debug else name + datetime.datetime.now().strftime("-%Y-%m-%dT%H-%M-%S")
+    folder_name = "debug" if is_debug else 'Step2/'+ datetime.datetime.now().strftime("-%Y-%m-%dT%H-%M-%S")
     output_dir = os.path.join(output_dir, folder_name)
     if is_debug and os.path.exists(output_dir):
         os.system(f"rm -rf {output_dir}")
@@ -157,23 +157,19 @@ def main(
     # Handle the output folder creation
     if is_main_process:
         os.makedirs(output_dir, exist_ok=True)
-        os.makedirs(f"{output_dir}/samples", exist_ok=True)
-        os.makedirs(f"{output_dir}/sanity_check", exist_ok=True)
         os.makedirs(f"{output_dir}/checkpoints", exist_ok=True)
-        OmegaConf.save(config, os.path.join(output_dir, 'config.yaml'))
-        
         print(description)
 
     # Load scheduler, tokenizer and models.
     noise_scheduler = DDIMScheduler(**OmegaConf.to_container(noise_scheduler_kwargs))
-    vae          = AutoencoderKL.from_pretrained(pretrained_model_path, subfolder="vae")
-    clip_image_encoder = ReferenceEncoder(model_path=clip_model_path)
-    referencenet = ReferenceNet.from_pretrained(pretrained_model_path, subfolder="unet")
+    vae          = AutoencoderKL.from_pretrained(pretrained_sd_path, subfolder="vae")
+    clip_image_encoder = ImageEncoder(model_path=pretrained_clip_path)
+    referencenet = ReferenceNet.from_pretrained(pretrained_sd_path, subfolder="unet")
 
     state_dict = torch.load(step1_checkpoint_path, map_location="cpu")
     referencenet_state_dict = state_dict['referencenet_state_dict']
     referencenet.load_state_dict(referencenet_state_dict, strict=True)
-    unet = UNet2DConditionModel.from_pretrained(pretrained_model_path, subfolder="unet", in_channels=6, out_channels=3, cross_attention_dim=1280, up_block_types= ["UpBlock2D","UpBlock2D","UpBlock2D", "UpBlock2D"], down_block_types= ["DownBlock2D","DownBlock2D", "DownBlock2D", "DownBlock2D"], low_cpu_mem_usage=False, ignore_mismatched_sizes=True)
+    unet = UNet2DConditionModel.from_pretrained(pretrained_sd_path, subfolder="unet", in_channels=6, out_channels=3, cross_attention_dim=1280, up_block_types= ["UpBlock2D","UpBlock2D","UpBlock2D", "UpBlock2D"], down_block_types= ["DownBlock2D","DownBlock2D", "DownBlock2D", "DownBlock2D"], low_cpu_mem_usage=False, ignore_mismatched_sizes=True)
         
     reference_control_writer = ReferenceNetAttention(referencenet, do_classifier_free_guidance=False, mode='write', fusion_blocks=fusion_blocks)
     reference_control_reader = ReferenceNetAttention(unet, do_classifier_free_guidance=False, mode='read', fusion_blocks=fusion_blocks)
