@@ -1,7 +1,7 @@
 output_dir: "output"
 
-pretrained_model_path: PATH To Your Pretrained Stable-Diffusion-Model
-clip_model_path: PATH To Your Pretrained CLIP-Model
+pretrained_sd_path: "pretrained_models/stable-diffusion-v1-5"
+pretrained_clip_path: "pretrained_models/clip-vit-base-patch32"
 step1_checkpoint_path: PATH To Your Pretrained Step1 Model
 
 
@@ -17,22 +17,23 @@ description: "### Train Info: train stage 2: L-Diffuser ###"
 
 train_data:
   video_folder: PATH To Your Video Datset
-  sample_size:  512
-  clip_model_path: PATH To Your Pretrained CLIP-Model
+  lut_folder: PATH To Your LUT Datset
+  sample_size:  256
+  clip_model_path: "pretrained_models/clip-vit-base-patch32"
 
 fusion_blocks: "full"
 
 learning_rate:    1.e-5
-train_batch_size: 8
+train_batch_size: 16
 
 max_train_steps:      100000
-checkpointing_steps:  5000
+checkpointing_steps:  10000
 gradient_accumulation_steps: 1
 
 
 global_seed: 42
 mixed_precision_training: False
-enable_xformers_memory_efficient_attention: True
+enable_xformers_memory_efficient_attention: False
 
 
 is_debug: False
