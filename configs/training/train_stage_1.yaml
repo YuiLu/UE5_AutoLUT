@@ -14,7 +14,7 @@ description: "### Train Info: train stage 1: GS-Extractor ###"
 
 train_data:
   video_folder: PATH To Your Video Datset
-    lut_folder: PATH To Your LUT Datset
+  lut_folder: PATH To Your LUT Datset
   sample_size:  256
   clip_model_path: "pretrained_models/clip-vit-base-patch32"
 
