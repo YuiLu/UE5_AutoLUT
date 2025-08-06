@@ -51,7 +51,7 @@ If you placed pretrained models in a directory other than 'pretrained/', make su
 
 ```bash
 python video_demo.py \
---ref_path examples/reference.jpg \
+--ref_path examples/reference1.jpg \
 --input_path examples/video1.mp4 \
 --save_path output/example1.mp4 
 ```
