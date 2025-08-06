@@ -15,13 +15,13 @@ from models.ReferenceNet import ReferenceNet
 from pipeline import InferencePipeline
 from diffusers.models import UNet2DConditionModel
 
-from utils.util import save_videos_grid
+from utils.util import save_videos_grid, preprocess
 from utils.videoreader import VideoReader
 
 from accelerate.utils import set_seed
 from einops import rearrange
 from pillow_lut import identity_table
-
+import time
 class Inference():
     def __init__(self, config="configs/prompts/video_demo.yaml") -> None:
         print("Initializing LUT Generation Pipeline...")
@@ -61,25 +61,22 @@ class Inference():
         self.pipeline.to(device)
         print("Initialization Done!")
 
-    def __call__(self, ref_sequence, input_path, save_path, random_seed, step, size=512):
-       
+    def __call__(self, ref_sequence, input_path, save_path, random_seed, step, size=512, ncc=False):
+
         input_video = VideoReader(input_path).read()
-        if input_video[0].shape[0] != size:
-            input_video = [np.array(Image.fromarray(c)) for c in input_video][:480]
-            input_video_resize = [np.array(Image.fromarray(c).resize((size, size))) for c in input_video]
-        input_video_resize = np.array(input_video_resize)
-        input_video = np.array(input_video)
+        input_video, input_video_resize = preprocess(input_video, ref_sequence, size, ncc)
 
         random_seed = int(random_seed)
+        if random_seed != -1: 
+            torch.manual_seed(random_seed)
+            set_seed(random_seed)
+        else:
+            torch.seed()
         step = int(step)
-
-        torch.manual_seed(random_seed)
-        set_seed(random_seed)
 
         generator = torch.Generator(device=torch.device("cuda:0"))
         generator.manual_seed(torch.initial_seed())
     
-        
         lut = self.pipeline(
             num_inference_steps      = step,
             width                    = size,
@@ -109,7 +106,6 @@ class Inference():
         output_frames = np.array(output_frames) 
         output_frames = rearrange(output_frames, "t h w c -> 1 c t h w")
         output_video = torch.from_numpy(output_frames)
-
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
 
         save_videos_grid(output_video, save_path)
