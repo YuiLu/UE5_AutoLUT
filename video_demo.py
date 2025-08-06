@@ -26,7 +26,7 @@ def parse_arguments():
     parser.add_argument('--input_path', type=str, required=True, help='Path to the input sequence file.')
     parser.add_argument('--save_path', type=str, required=True, help='Path to save output sequence file.')
     parser.add_argument('--config', type=str, default='configs/prompts/video_demo.yaml', help='Path to the configuration file.')
-    parser.add_argument('--seed', type=int, help='Seed value.', default=1)
+    parser.add_argument('--seed', type=int, help='Seed value.', default=48)
     parser.add_argument('--steps', type=int, help='Number of steps for the animation.', default=25)
     parser.add_argument('--size', type=int, help='Size of the image.', default=512)
     parser.add_argument('--ncc', action='store_true', help='Color Correction')
