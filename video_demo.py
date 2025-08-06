@@ -1,6 +1,6 @@
 import numpy as np
 from PIL import Image
-from grading_loop import Inference
+from grading import Inference
 import argparse
 
 def color_grading(args):
