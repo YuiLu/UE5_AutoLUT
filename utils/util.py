@@ -140,3 +140,52 @@ def slerp(
         return (1.0 - t) * v0 + t * v1
     omega = dot.acos()
     return (((1.0 - t) * omega).sin() * v0 + (t * omega).sin() * v1) / omega.sin()
+
+
+def vars(src, ref):
+
+    r, z = src.reshape([-1, src.shape[-1]]).T, ref.reshape([-1, ref.shape[2]]).T
+
+    cov_r, cov_z = np.cov(r), np.cov(z)
+
+    mu_r, mu_z = r.mean(axis=1)[..., np.newaxis], z.mean(axis=1)[..., np.newaxis]
+    eig_val_r, eig_vec_r = np.linalg.eig(cov_r)
+    eig_val_r[eig_val_r < 0] = 0
+    val_r = np.diag(np.sqrt(eig_val_r[::-1]))
+    vec_r = np.array(eig_vec_r[:, ::-1])
+    inv_r = np.diag(1. / (np.diag(val_r + np.spacing(1))))
+
+    mat_c = val_r @ vec_r.T @ cov_z @ vec_r @ val_r
+    eig_val_c, eig_vec_c = np.linalg.eig(mat_c)
+    eig_val_c[eig_val_c < 0] = 0
+    val_c = np.diag(np.sqrt(eig_val_c))
+
+    transfer_mat = vec_r @ inv_r @ eig_vec_c @ val_c @ eig_vec_c.T @ inv_r @ vec_r.T
+    return [cov_r, cov_z, mu_r, mu_z, transfer_mat]
+
+def transfer(src, ref, variables):
+    cov_r, cov_z, mu_r, mu_z, transfer_mat = variables
+    r, z = src.reshape([-1, src.shape[2]]).T, ref.reshape([-1, ref.shape[2]]).T
+
+    res = np.dot(transfer_mat, r - mu_r) + mu_z
+
+    res = res.T.reshape(src.shape)
+
+    return res
+
+def preprocess(src, ref, size, ncc):
+    input_video = [np.array(Image.fromarray(c)) for c in src][:480]
+    if not ncc:
+        output_frames = []
+        input_video_cc = [np.array(Image.fromarray(c).resize((256, 256))) for c in input_video]
+        variables = vars(np.array(input_video_cc), ref)
+        for i, frame in enumerate(input_video):
+            img_res = transfer(frame, ref, variables)
+            output_frames.append(img_res)
+        output_frames = np.array(output_frames) 
+        output_frames = (output_frames-output_frames.min())/(output_frames.max()-output_frames.min())
+        input_video = (output_frames*255.).astype(np.uint8)
+
+    input_video_resize = [np.array(Image.fromarray(c).resize((size, size))) for c in input_video]
+
+    return input_video, input_video_resize
