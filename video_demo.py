@@ -1,6 +1,6 @@
 import numpy as np
 from PIL import Image
-from grading import Inference
+from grading_loop import Inference
 import argparse
 
 def color_grading(args):
@@ -16,8 +16,8 @@ def color_grading(args):
     seed = args.seed
     steps = args.steps
     size = args.size
-
-    output_path = grader(reference_image, input_path, save_path, seed, steps, size)
+    ncc = args.ncc
+    output_path = grader(reference_image, input_path, save_path, seed, steps, size, ncc)
     print(f"Result saved at {output_path}")
 
 def parse_arguments():
@@ -26,12 +26,13 @@ def parse_arguments():
     parser.add_argument('--input_path', type=str, required=True, help='Path to the input sequence file.')
     parser.add_argument('--save_path', type=str, required=True, help='Path to save output sequence file.')
     parser.add_argument('--config', type=str, default='configs/prompts/video_demo.yaml', help='Path to the configuration file.')
-    parser.add_argument('--seed', type=int, help='Seed value.', default=26)
+    parser.add_argument('--seed', type=int, help='Seed value.', default=1)
     parser.add_argument('--steps', type=int, help='Number of steps for the animation.', default=25)
     parser.add_argument('--size', type=int, help='Size of the image.', default=512)
-
+    parser.add_argument('--ncc', action='store_true', help='Color Correction')
     return parser.parse_args()
 
 if __name__ == "__main__":
     args = parse_arguments()
     color_grading(args)
+
