@@ -226,7 +226,7 @@ class InferencePipeline(DiffusionPipeline):
         cos_sim = torch.nn.CosineSimilarity()
         max_sim = 0
         source_image = np.expand_dims(source_image, axis=0)
-        for idx_c in tqdm(range(0, len(input_video), 24)):
+        for idx_c in range(0, len(input_video), 24):
             clip_src_image = clip_image_processor(images=Image.fromarray(input_video[idx_c]).convert('RGB'), return_tensors="pt").pixel_values
             clip_src_vector = clip_image_encoder(clip_src_image.to(device=latents.device,dtype=latents.dtype)).unsqueeze(1).to(device=latents.device,dtype=latents.dtype)
             clip_ref_image = clip_image_processor(images=Image.fromarray(source_image[0]).convert('RGB'), return_tensors="pt").pixel_values
