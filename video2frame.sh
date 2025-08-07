@@ -1,7 +1,7 @@
 #!/bin/bash
 
 
-video_path="/data/VCG/videos"
+video_path="Path to your dataset"
 
 for video in "$video_path/train/"*.mkv; do
     filename=$(basename "$video")
