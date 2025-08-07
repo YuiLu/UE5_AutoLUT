@@ -78,6 +78,13 @@ We use the Condensed Movie Dataset which consists of over 33,000 clips from 3,00
 100 LUT bases which are selected as distinctive LUTs from the $400$ LUTs of the Video Harmonization Dataset. \
 You can download them through: [Google Drive](https://drive.google.com/file/d/1iHljoQGH1OGNC-yWGX8XUcR6hip8_4zt/view?usp=sharing) \
 They are originally from: [Condensed Movie Dataset](https://www.robots.ox.ac.uk/~vgg/data/condensed-movies) & [Video Harmonization Dataset](https://github.com/bcmi/Video-Harmonization-Dataset-HYouTube)
+We recommend dividing the video into frames using the script below. \
+Please make sure to change the video_path variable to the location where your dataset is stored.
+
+```commandline
+bash video2frame.sh
+```
+
 
 ### 🔧 Training Phase 1
 
