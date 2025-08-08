@@ -123,10 +123,10 @@ We have used codes from other great research work, including [Animate-Anyone](ht
 If you find this work helpful, please consider citing:
 
 ```BibTeXw
-@article{preparing,
+@article{shin2025video,
   title={Video Color Grading via Look-Up Table Generation},
-  author={Shin, Seuunghyun and Shin, Dongmin and Shin, Jisu and Jeon, Hae-Gon and Lee, Joon-Young},
-  journal={arXiv preprint arXiv:2504.01016},
+  author={Shin, Seunghyun and Shin, Dongmin and Shin, Jisu and Jeon, Hae-Gon and Lee, Joon-Young},
+  journal={arXiv preprint arXiv:2508.00548},
   year={2025}
 }
 ```
