@@ -100,7 +100,14 @@ torchrun --nnodes=1 --nproc_per_node=8 train_step2.py --config configs/training/
 
 ### 📊 Evaluation
 
-Coming Soon
+You can evaluate performance by running:
+
+```commandline
+python eval.py \
+    --video_path <PATH_TO_YOUR_VIDEO_DATASET> \
+    --lut_path <PATH_TO_YOUR_LUTs> \
+    --save_path <PATH_TO_SAVE_RESULTS>
+```
 
 ## 🤝 Contributing
 
