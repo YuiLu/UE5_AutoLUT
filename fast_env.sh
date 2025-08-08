@@ -22,6 +22,10 @@ pip install pillow_lut
 pip install huggingface_hub==0.25.1
 pip install numpy
 pip install pillow
+pip install lpips
+pip install piq
+pip install image-quality
+pip install triton
 # If you need to download the model locally:
 conda install git-lfs
 cd pretrained_models
