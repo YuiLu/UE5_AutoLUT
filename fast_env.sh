@@ -30,6 +30,6 @@ pip install triton
 conda install git-lfs
 cd pretrained_models
 git lfs install
-git clone https://huggingface.co/runwayml/stable-diffusion-v1-5
+git clone https://huggingface.co/stable-diffusion-v1-5/stable-diffusion-v1-5
 git clone https://huggingface.co/openai/clip-vit-base-patch32
 git clone https://huggingface.co/openai/clip-vit-large-patch14
