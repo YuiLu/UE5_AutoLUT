@@ -41,7 +41,7 @@ class Movie_3K_Step1(Dataset):
             [os.path.join(self.lut_root, _) for _ in os.listdir(self.lut_root) if _.endswith('.cube')])
         self.lut_loads = []
 
-        for lut in LUTs[:90]:
+        for lut in LUTs:
             try:
                 hefe = load_cube_file(lut)
             except Exception as e:
