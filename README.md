@@ -86,17 +86,9 @@ bash video2frame.sh
 ```
 
 
-### 🔧 Training Phase 1
+### 🔧 Training Phase 1 & 2
 
-```commandline
-torchrun --nnodes=1 --nproc_per_node=8 train_step1.py --config configs/training/train_stage_1.yaml
-```
-
-### 🔧 Training Phase 2
-
-```commandline
-torchrun --nnodes=1 --nproc_per_node=8 train_step2.py --config configs/training/train_stage_2.yaml
-```
+We’re currently experiencing technical issues. We’re working to resolve them. Thank you for your patience.
 
 ### 📊 Evaluation
 
