@@ -42,7 +42,7 @@ source fast_env.sh
 ```
 - Or Install manually(please refer to [fast_env.sh](fast_env.sh))
 
-3. Download the pretrained model weights from [Google Drive](https://drive.google.com/drive/folders/1m0-y486vpq3yzh-TgqPpLcUbxt5o3wc5?usp=sharing) and place them in the 'pretrained/' directory.
+3. Download the pretrained model weights from [Google Drive]([https://drive.google.com/drive/folders/1m0-y486vpq3yzh-TgqPpLcUbxt5o3wc5?usp=sharing](https://drive.google.com/drive/folders/1GX3Q0kti6WpmZPKdzToR2sv9qEps6cmK?usp=sharing)) and place them in the 'pretrained/' directory.
 
 ### Inference
 
