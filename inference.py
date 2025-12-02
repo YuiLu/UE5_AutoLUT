@@ -39,7 +39,8 @@ class Inference():
         self.clip_image_encoder = ImageEncoder(model_path=config.pretrained_clip_path)
         self.clip_image_processor = CLIPProcessor.from_pretrained(config.pretrained_clip_path, local_files_only=True)
 
-        unet = UNet2DConditionModel.from_pretrained(config.pretrained_sd_path, subfolder="unet", in_channels=6, out_channels=3, cross_attention_dim=1280, up_block_types= ["UpBlock2D","UpBlock2D","UpBlock2D", "UpBlock2D"], down_block_types= ["DownBlock2D","DownBlock2D", "DownBlock2D", "DownBlock2D"], low_cpu_mem_usage=False, ignore_mismatched_sizes=True)
+        unet = UNet2DConditionModel.from_pretrained(config.pretrained_sd_path, subfolder="unet", in_channels=6, out_channels=3, low_cpu_mem_usage=False, ignore_mismatched_sizes=True)
+
         state_dict = torch.load(config.pretrained_LD_path, map_location="cpu")['unet_state_dict']
         m, u = unet.load_state_dict(state_dict, strict=True)
         print(f"### missing keys: {len(m)}; \n### unexpected keys: {len(u)} ###")
