@@ -29,7 +29,7 @@ checkpointing_steps:  10000
 gradient_accumulation_steps: 1
 
 global_seed: 42
-mixed_precision_training: False
-enable_xformers_memory_efficient_attention: False
+mixed_precision_training: True
+enable_xformers_memory_efficient_attention: True
 
 is_debug: False
