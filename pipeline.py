@@ -241,6 +241,7 @@ class InferencePipeline(DiffusionPipeline):
         src_image_latents = self.images2latents(src_img[None, :], latents_dtype).cuda()
         ref_image_latents = self.images2latents(ref_img[None, :], latents_dtype).cuda()
         encoder_hidden_states = torch.cat([clip_ref, clip_src], dim=0) # [bs,1,768]
+        clip_diff = clip_ref - clip_src
 
         clip_image_encoder.to('cpu')
        
@@ -275,7 +276,7 @@ class InferencePipeline(DiffusionPipeline):
             pred = self.unet(
                     noisy_latents, 
                     t, 
-                    encoder_hidden_states=None,
+                    encoder_hidden_states=clip_diff,
                     return_dict=False,
                 )[0]
             
