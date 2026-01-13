@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyd
+*.so
+*.egg-info/
+.eggs/
+.pytest_cache/
+
+# Local outputs
+output/
+
+# Local env scripts
+env.sh
+fast_env.sh
+
+# Model weights (keep folder structure via .gitkeep)
+pretrained_models/*
+!pretrained_models/.gitkeep
+
+# Keep empty clip + SD1.5 folders (track only .gitkeep)
+!pretrained_models/clip-vit-base-patch32/
+pretrained_models/clip-vit-base-patch32/*
+!pretrained_models/clip-vit-base-patch32/.gitkeep
+
+!pretrained_models/clip-vit-large-patch14/
+pretrained_models/clip-vit-large-patch14/*
+!pretrained_models/clip-vit-large-patch14/.gitkeep
+
+!pretrained_models/stable-diffusion-v1-5/
+pretrained_models/stable-diffusion-v1-5/*
+!pretrained_models/stable-diffusion-v1-5/.gitkeep

@@ -1,0 +1,4 @@
+# Prevent pip from changing the installed torch build
+# Current env: torch 2.6.0+cu124
+# If you use pip again, keep this constraint.
+torch==2.6.0+cu124

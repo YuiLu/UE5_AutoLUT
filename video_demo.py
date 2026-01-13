@@ -1,3 +1,13 @@
+import warnings
+
+# transformers 4.32 + torch 2.6 emits a noisy FutureWarning about pytree registration.
+# This is harmless for inference; keep output clean.
+warnings.filterwarnings(
+    "ignore",
+    category=FutureWarning,
+    message=r"`torch\.utils\._pytree\._register_pytree_node` is deprecated\.",
+)
+
 import numpy as np
 from PIL import Image
 from grading import Inference
