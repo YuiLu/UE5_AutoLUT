@@ -12,11 +12,65 @@ import numpy as np
 import torch
 import torchvision
 
-from PIL import Image
+from PIL import Image, ImageFilter
 from typing import Union
 from tqdm import tqdm
 from einops import rearrange
 import torch.distributed as dist
+
+
+def save_cube_lut(lut: np.ndarray, path: str, title: str = "AutoLUT", domain_min=(0.0, 0.0, 0.0), domain_max=(1.0, 1.0, 1.0), lut_size: int = 16):
+    """Save a 3D LUT to a .cube file.
+
+    Accepts HWC 2D layout used by PIL's Color3DLUT (e.g. 64x64x3 for lut_size=16).
+    
+    PIL's Color3DLUT uses a specific memory layout where the table is indexed as:
+        table[r + g*size + b*size*size] -> (R_out, G_out, B_out)
+    i.e., R changes fastest, then G, then B.
+    
+    .cube file format requires the opposite ordering:
+        R changes slowest, G in the middle, B changes fastest.
+    
+    This function converts from PIL's layout to .cube standard layout.
+    """
+    lut_arr = np.asarray(lut, dtype=np.float32)
+    
+    if lut_arr.ndim == 3 and lut_arr.shape[-1] == 3:
+        # Input shape: (size*size, size, 3) flattened to (size^3, 3)
+        # PIL layout: index = r + g*size + b*size^2
+        expected = lut_size ** 3
+        lut_flat = lut_arr.reshape(-1, 3)
+        if lut_flat.shape[0] != expected:
+            raise ValueError(f"Expected LUT with {expected} entries, got {lut_flat.shape[0]}")
+        
+        # Reshape to (B, G, R, 3) indexing based on PIL's layout
+        # PIL: flat_index = r + g*size + b*size^2
+        # So reshape to (size, size, size, 3) gives us [b, g, r, :]
+        lut_bgr = lut_flat.reshape(lut_size, lut_size, lut_size, 3)
+        
+        # .cube needs (R, G, B, 3) with R slowest, B fastest
+        # Transpose from [b, g, r, :] to [r, g, b, :]
+        lut_cube = np.transpose(lut_bgr, (2, 1, 0, 3))
+        lut_rgb = lut_cube.reshape(-1, 3)
+    elif lut_arr.ndim == 1:
+        if lut_arr.size != 3 * (lut_size ** 3):
+            raise ValueError(f"Expected flat LUT of length {3 * (lut_size ** 3)}, got {lut_arr.size}")
+        # Same conversion for flat input
+        lut_bgr = lut_arr.reshape(lut_size, lut_size, lut_size, 3)
+        lut_cube = np.transpose(lut_bgr, (2, 1, 0, 3))
+        lut_rgb = lut_cube.reshape(-1, 3)
+    else:
+        raise ValueError(f"Unsupported LUT shape: {lut_arr.shape}")
+
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+    with open(path, "w", encoding="utf-8", newline="\n") as f:
+        if title:
+            f.write(f'TITLE "{title}"\n')
+        f.write(f"LUT_3D_SIZE {lut_size}\n")
+        f.write(f"DOMAIN_MIN {domain_min[0]} {domain_min[1]} {domain_min[2]}\n")
+        f.write(f"DOMAIN_MAX {domain_max[0]} {domain_max[1]} {domain_max[2]}\n")
+        for r, g, b in lut_rgb:
+            f.write(f"{r:.6f} {g:.6f} {b:.6f}\n")
 
 
 def zero_rank_print(s):
@@ -174,7 +228,18 @@ def transfer(src, ref, variables):
     return res
 
 def preprocess(src, ref, size, ncc):
+    """
+    Preprocess input video with optional color transfer.
+    
+    Returns:
+        input_video: preprocessed video frames (uint8)
+        input_video_resize: resized preprocessed frames for model input
+        preprocess_params: dict with color transfer parameters (for LUT generation)
+                          None if ncc=True (no color correction)
+    """
     input_video = [np.array(Image.fromarray(c)) for c in src][:480]
+    preprocess_params = None
+    
     if not ncc:
         output_frames = []
         input_video_cc = [np.array(Image.fromarray(c).resize((256, 256))) for c in input_video]
@@ -183,9 +248,111 @@ def preprocess(src, ref, size, ncc):
             img_res = transfer(frame, ref, variables)
             output_frames.append(img_res)
         output_frames = np.array(output_frames) 
-        output_frames = (output_frames-output_frames.min())/(output_frames.max()-output_frames.min())
-        input_video = (output_frames*255.).astype(np.uint8)
+        
+        # Record normalization parameters for LUT generation
+        out_min, out_max = output_frames.min(), output_frames.max()
+        output_frames = (output_frames - out_min) / (out_max - out_min)
+        input_video = (output_frames * 255.).astype(np.uint8)
+        
+        # Store parameters for combined LUT generation
+        preprocess_params = {
+            'transfer_mat': variables[4],  # transfer_mat
+            'mu_r': variables[2],          # source mean
+            'mu_z': variables[3],          # reference mean
+            'out_min': out_min,
+            'out_max': out_max,
+        }
 
     input_video_resize = [np.array(Image.fromarray(c).resize((size, size))) for c in input_video]
 
-    return input_video, input_video_resize
+    return input_video, input_video_resize, preprocess_params
+
+
+def apply_preprocess_to_color(rgb_float, preprocess_params):
+    """
+    Apply preprocess color transform to a single RGB value (0-1 range).
+    Used for generating combined LUT.
+    
+    Args:
+        rgb_float: numpy array of shape (3,) with values in [0, 1]
+        preprocess_params: dict from preprocess() function
+    
+    Returns:
+        transformed RGB value in [0, 1] range
+    """
+    if preprocess_params is None:
+        return rgb_float
+    
+    transfer_mat = preprocess_params['transfer_mat']
+    mu_r = preprocess_params['mu_r']
+    mu_z = preprocess_params['mu_z']
+    out_min = preprocess_params['out_min']
+    out_max = preprocess_params['out_max']
+    
+    # Convert to 0-255 range for transform (matching original preprocess)
+    rgb_255 = rgb_float * 255.0
+    
+    # Apply color transfer: res = transfer_mat @ (pixel - mu_r) + mu_z
+    pixel = rgb_255.reshape(3, 1)
+    transformed = np.dot(transfer_mat, pixel - mu_r) + mu_z
+    transformed = transformed.flatten()
+    
+    # Apply same normalization as preprocess
+    normalized = (transformed - out_min) / (out_max - out_min)
+    
+    return np.clip(normalized, 0.0, 1.0)
+
+
+def generate_combined_lut(grading_lut_hwc, preprocess_params, lut_size=16):
+    """
+    Generate a combined LUT that includes both preprocess color transfer and grading.
+    
+    This LUT can be used in external software to get the same result as the output video.
+    
+    Args:
+        grading_lut_hwc: the grading LUT in HWC format (size*size, size, 3) = (64, 64, 3) for size=16
+                         This is the format used by PIL's identity_table
+        preprocess_params: parameters from preprocess() function
+        lut_size: LUT size (default 16)
+    
+    Returns:
+        combined_lut_hwc: combined LUT in same format as input
+    """
+    if preprocess_params is None:
+        # No preprocess was applied, return original LUT
+        return grading_lut_hwc
+    
+    # Create PIL filter for grading LUT
+    grading_filter = ImageFilter.Color3DLUT(lut_size, grading_lut_hwc.flatten().tolist())
+    
+    # Generate combined LUT
+    # The HWC format is reshaped from (4096*3,) to (64, 64, 3)
+    # PIL flat index = r + g*16 + b*256
+    # HWC index: h = flat_idx // 64, w = flat_idx % 64
+    combined_lut = np.zeros_like(grading_lut_hwc)
+    
+    for b in range(lut_size):
+        for g in range(lut_size):
+            for r in range(lut_size):
+                # Input color (normalized to 0-1)
+                input_rgb = np.array([r, g, b], dtype=np.float32) / (lut_size - 1)
+                
+                # Step 1: Apply preprocess color transform
+                preprocessed_rgb = apply_preprocess_to_color(input_rgb, preprocess_params)
+                
+                # Step 2: Apply grading LUT
+                # Convert to uint8 image for PIL filter
+                preprocessed_uint8 = (preprocessed_rgb * 255).astype(np.uint8)
+                img = Image.fromarray(preprocessed_uint8.reshape(1, 1, 3))
+                graded_img = img.filter(grading_filter)
+                graded_rgb = np.array(graded_img).flatten() / 255.0
+                
+                # Store in combined LUT
+                # PIL flat_idx = r + g*16 + b*256
+                flat_idx = r + g * lut_size + b * lut_size * lut_size
+                # HWC reshape (4096,3) -> (64, 64, 3): row-major order
+                h = flat_idx // 64
+                w = flat_idx % 64
+                combined_lut[h, w] = graded_rgb
+    
+    return combined_lut

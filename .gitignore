@@ -11,7 +11,6 @@ __pycache__/
 output/
 
 # Local env scripts
-env.sh
 fast_env.sh
 
 # Model weights (keep folder structure via .gitkeep)
@@ -30,3 +29,6 @@ pretrained_models/clip-vit-large-patch14/*
 !pretrained_models/stable-diffusion-v1-5/
 pretrained_models/stable-diffusion-v1-5/*
 !pretrained_models/stable-diffusion-v1-5/.gitkeep
+
+/server_output
+

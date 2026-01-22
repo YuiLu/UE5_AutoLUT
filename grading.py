@@ -15,7 +15,7 @@ from models.ReferenceNet import ReferenceNet
 from pipeline import InferencePipeline
 from diffusers.models import UNet2DConditionModel
 
-from utils.util import save_videos_grid, preprocess
+from utils.util import save_videos_grid, preprocess, save_cube_lut, generate_combined_lut
 from utils.videoreader import VideoReader
 
 from accelerate.utils import set_seed
@@ -64,7 +64,7 @@ class Inference():
     def __call__(self, ref_sequence, input_path, save_path, random_seed, step, size=512, ncc=False):
 
         input_video = VideoReader(input_path).read()
-        input_video, input_video_resize = preprocess(input_video, ref_sequence, size, ncc)
+        input_video, input_video_resize, preprocess_params = preprocess(input_video, ref_sequence, size, ncc)
 
         random_seed = int(random_seed)
         if random_seed != -1: 
@@ -94,10 +94,17 @@ class Inference():
     
         lut = lut[0].detach().cpu().numpy()
         lut = rearrange(lut, "c h w -> h w c")
-        lut = lut + self.id_lut_hwc
-        lut = np.clip(lut, 0.0, 1.0)
-        lut = lut.flatten()
-        lut = ImageFilter.Color3DLUT(16, lut)
+        lut_full = lut + self.id_lut_hwc
+        lut_full = np.clip(lut_full, 0.0, 1.0)
+
+        # Save a standard .cube LUT (DaVinci Resolve / Premiere / etc.)
+        # Generate combined LUT that includes preprocess transform for external software
+        base, _ext = os.path.splitext(save_path)
+        cube_path = base + ".cube"
+        combined_lut = generate_combined_lut(lut_full, preprocess_params, lut_size=16)
+        save_cube_lut(combined_lut, cube_path, title=os.path.basename(base), lut_size=16)
+
+        lut = ImageFilter.Color3DLUT(16, lut_full.flatten())
         output_frames = []
 
         for frame in tqdm(input_video):
